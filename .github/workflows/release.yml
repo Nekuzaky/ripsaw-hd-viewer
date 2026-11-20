@@ -18,6 +18,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx electron-builder --win --publish always
+      - run: npx electron-builder --win --publish never
+      - name: Publish GitHub release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "RipView $VERSION" \
+            --generate-notes \
+            "release/$VERSION/RipView-Setup-$VERSION.exe" \
+            "release/$VERSION/RipView-Setup-$VERSION.exe.blockmap" \
+            "release/$VERSION/RipView-$VERSION-portable.exe" \
+            "release/$VERSION/latest.yml"
