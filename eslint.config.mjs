@@ -7,12 +7,17 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['src/main/**/*.ts', 'src/preload/**/*.ts', '*.config.*'],
+    files: ['src/main/**/*.ts', 'src/preload/**/*.ts', '*.config.*', 'scripts/**/*.cjs'],
     languageOptions: { globals: globals.node },
   },
   {
     files: ['src/renderer/**/*.ts'],
     languageOptions: { globals: globals.browser },
+  },
+  {
+    files: ['scripts/**/*.cjs'],
+    languageOptions: { sourceType: 'commonjs' },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
     rules: {

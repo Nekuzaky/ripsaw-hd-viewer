@@ -302,8 +302,8 @@ export class SettingsPanel {
           ),
           h(
             'a',
-            { className: 'link', href: 'https://github.com/Nekuzaky/ripview', target: '_blank' },
-            'github.com/Nekuzaky/ripview',
+            { className: 'link', href: 'https://github.com/Nekuzaky/ripsaw-hd-viewer', target: '_blank' },
+            'github.com/Nekuzaky/ripsaw-hd-viewer',
           ),
         ];
     }

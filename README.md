@@ -1,15 +1,16 @@
 <div align="center">
-  <img src="build/icon.png" width="96" alt="RipView logo" />
+  <img src="build/icon.png" width="112" alt="RipView logo" />
 
-# RipView
+# RipView · Razer Ripsaw HD Viewer
 
-**Play your console on your PC through a Razer Ripsaw HD with the best possible image and the lowest latency, without OBS or Streamlabs.**
+**Free, low-latency capture card viewer to play your PS5, PS4, Xbox or Nintendo Switch on your PC through a Razer Ripsaw HD, in 1080p60, without OBS or Streamlabs.**
 
-[![CI](https://github.com/Nekuzaky/ripview/actions/workflows/ci.yml/badge.svg)](https://github.com/Nekuzaky/ripview/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Nekuzaky/ripview?display_name=tag)](https://github.com/Nekuzaky/ripview/releases)
+[![CI](https://github.com/Nekuzaky/ripsaw-hd-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/Nekuzaky/ripsaw-hd-viewer/actions/workflows/ci.yml)
+[![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4.svg)](#installation)
+[![Capture: 1080p60](https://img.shields.io/badge/capture-1080p60-44d62c.svg)](#features)
 [![License: MIT](https://img.shields.io/badge/license-MIT-44d62c.svg)](LICENSE)
 
-[Français](#français) · [Download](https://github.com/Nekuzaky/ripview/releases/latest)
+[Français](#français) · [Download](https://github.com/Nekuzaky/ripsaw-hd-viewer/releases/latest)
 
 </div>
 
@@ -83,9 +84,32 @@ If you have a TV or monitor plugged into the Ripsaw HD output, it receives the s
 
 ## Installation
 
-Download the installer or the portable version from the [latest release](https://github.com/Nekuzaky/ripview/releases/latest).
+Download the installer or the portable version from the [latest release](https://github.com/Nekuzaky/ripsaw-hd-viewer/releases/latest).
 
-Requirements: Windows 10 or 11 (64-bit), a Razer Ripsaw HD and a USB 3 port.
+Requirements: Windows 10 or 11 (64-bit), a Razer Ripsaw HD and a USB 3 port. Other UVC HDMI capture cards can be selected in **Settings › Capture**.
+
+## FAQ
+
+**How do I play my PS5 on my PC with a Razer Ripsaw HD without OBS or Streamlabs?**
+Install RipView, plug the Ripsaw HD into a USB 3 port and open the app. It finds the card, the console audio and starts in 1080p60 on its own.
+
+**Why is my Ripsaw HD showing a black screen?**
+HDCP is enabled on the console. On a PS5, turn off **Settings › System › HDMI › Enable HDCP**.
+
+**Why are there green or yellow lines on the image?**
+The card does not get enough USB bandwidth. Plug it directly into a USB 3 port on the back of the PC, not into a hub or a USB 2 port. RipView detects this and lowers the quality until it is fixed.
+
+**Why do the colors look washed out?**
+The console sends a limited color range. RipView corrects it automatically, or you can force it in **Settings › Image › Color range**.
+
+**Does the Ripsaw HD capture in 4K?**
+No. It passes 4K through to a TV or monitor plugged into its HDMI output, but it captures at up to 1080p60. RipView uses that maximum.
+
+**How much delay does RipView add?**
+Video is drawn the moment each frame arrives, and audio uses the lowest-latency mode of Windows. Press `I` to see the live stats.
+
+**The Ripsaw HD is "in use by another app". What should I do?**
+Close OBS, Streamlabs, Discord or any app with a camera preview. RipView reconnects automatically.
 
 ## Development
 
@@ -147,7 +171,7 @@ RipView is an independent project. It is not affiliated with, endorsed by or spo
 
 ## Français
 
-**RipView** affiche ta console sur ton PC via une Razer Ripsaw HD, avec la meilleure image possible et la latence la plus faible, sans OBS ni Streamlabs.
+**RipView** est un logiciel gratuit pour la carte de capture **Razer Ripsaw HD**. Il affiche ta PS5, PS4, Xbox ou Nintendo Switch sur ton PC avec la meilleure image possible et la latence la plus faible, sans OBS ni Streamlabs.
 
 - **Image** : 1080p à 60 i/s rendue par la carte graphique, netteté adaptative, correction automatique des couleurs délavées, réglages de luminosité, contraste, saturation et gamma.
 - **Fiabilité** : détection automatique de la Ripsaw HD, reconnexion toute seule, détection des glitchs USB avec baisse automatique de la qualité et conseil pour régler le problème.
@@ -157,4 +181,4 @@ RipView is an independent project. It is not affiliated with, endorsed by or spo
 
 **Pour la meilleure image** : branche la Ripsaw HD directement sur un port USB 3 (pas sur un hub), désactive le HDCP et le HDR dans les réglages de la PS5, et ferme OBS, Streamlabs ou Discord.
 
-[Télécharger la dernière version](https://github.com/Nekuzaky/ripview/releases/latest)
+[Télécharger la dernière version](https://github.com/Nekuzaky/ripsaw-hd-viewer/releases/latest)

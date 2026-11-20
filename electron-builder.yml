@@ -28,4 +28,4 @@ portable:
 publish:
   provider: github
   owner: Nekuzaky
-  repo: ripview
+  repo: ripsaw-hd-viewer

@@ -1,26 +1,34 @@
 {
-  "name": "ripview",
+  "name": "ripsaw-hd-viewer",
   "productName": "RipView",
   "version": "1.0.0",
-  "description": "Low-latency, high-quality viewer for the Razer Ripsaw HD capture card. Play your console on your PC without OBS or Streamlabs.",
+  "description": "RipView: free low-latency viewer for the Razer Ripsaw HD capture card. Play PS5, PS4, Xbox or Nintendo Switch on your PC in 1080p60 without OBS or Streamlabs.",
   "main": "./out/main/index.js",
   "author": "Nekuzaky",
   "license": "MIT",
-  "homepage": "https://github.com/Nekuzaky/ripview",
+  "homepage": "https://github.com/Nekuzaky/ripsaw-hd-viewer",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Nekuzaky/ripview.git"
+    "url": "https://github.com/Nekuzaky/ripsaw-hd-viewer.git"
   },
   "keywords": [
     "razer",
-    "ripsaw",
+    "razer-ripsaw",
+    "ripsaw-hd",
     "capture-card",
+    "capture-card-viewer",
+    "hdmi-capture",
+    "game-capture",
     "ps5",
+    "ps4",
     "xbox",
-    "switch",
-    "viewer",
+    "nintendo-switch",
+    "obs-alternative",
+    "streamlabs-alternative",
     "low-latency",
-    "electron"
+    "1080p60",
+    "electron",
+    "windows"
   ],
   "scripts": {
     "dev": "electron-vite dev",
@@ -31,7 +39,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dist": "npm run build && electron-builder --win",
-    "dist:dir": "npm run build && electron-builder --win --dir"
+    "dist:dir": "npm run build && electron-builder --win --dir",
+    "icons": "electron scripts/build-icons.cjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
