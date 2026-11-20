@@ -586,3 +586,20 @@ body.mini-player .status-card p {
 .stats-overlay:empty {
   display: none;
 }
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

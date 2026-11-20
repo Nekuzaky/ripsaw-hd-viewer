@@ -9,6 +9,7 @@ export interface HealthStats {
   corruptedRatio: number;
   limitedRangeDetected: boolean;
   signalPresent: boolean;
+  videoLatencyMs: number | null;
 }
 
 interface HealthEvents {
@@ -20,6 +21,7 @@ interface HealthEvents {
 const SAMPLE_WIDTH = 64;
 const SAMPLE_HEIGHT = 36;
 const SAMPLE_EVERY = 6;
+const BAND_ROWS = 4;
 const DEGRADED_WINDOW_S = 6;
 const CORRUPTION_THRESHOLD = 0.08;
 
@@ -41,6 +43,8 @@ export class StreamHealth extends Emitter<HealthEvents> {
   private signal = false;
   private timer: number | null = null;
   private warmupUntil = 0;
+  private latencySum = 0;
+  private latencyCount = 0;
 
   constructor() {
     super();
@@ -57,8 +61,15 @@ export class StreamHealth extends Emitter<HealthEvents> {
     this.timer = video ? window.setInterval(() => this.report(), 1000) : null;
   }
 
-  onFrame(now: number): void {
+  onFrame(now: number, metadata?: VideoFrameCallbackMetadata): void {
     this.frameTimes.push(now);
+    if (metadata?.captureTime !== undefined) {
+      const latency = metadata.expectedDisplayTime - metadata.captureTime;
+      if (latency > 0 && latency < 1000) {
+        this.latencySum += latency;
+        this.latencyCount++;
+      }
+    }
     if (++this.frameCounter % SAMPLE_EVERY === 0) this.sample();
   }
 
@@ -81,16 +92,10 @@ export class StreamHealth extends Emitter<HealthEvents> {
     this.context.drawImage(video, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
     const { data } = this.context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT);
 
-    let green = 0;
-    const bottomStart = (SAMPLE_HEIGHT - 4) * SAMPLE_WIDTH * 4;
-    for (let i = bottomStart; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      if (g > 90 && r < 50 && b < 50) green++;
-    }
+    const bottom = this.greenStrip(data, SAMPLE_HEIGHT - BAND_ROWS);
+    const top = this.greenStrip(data, 0);
     this.sampledFrames++;
-    if (green > SAMPLE_WIDTH * 4 * 0.6) this.corruptedFrames++;
+    if (bottom.ratio > 0.85 && bottom.flat && top.ratio < 0.2) this.corruptedFrames++;
 
     let min = 255;
     let max = 0;
@@ -110,6 +115,23 @@ export class StreamHealth extends Emitter<HealthEvents> {
     }
   }
 
+  private greenStrip(data: Uint8ClampedArray, firstRow: number): { ratio: number; flat: boolean } {
+    let green = 0;
+    let minG = 255;
+    let maxG = 0;
+    const start = firstRow * SAMPLE_WIDTH * 4;
+    const end = start + BAND_ROWS * SAMPLE_WIDTH * 4;
+    for (let i = start; i < end; i += 4) {
+      const g = data[i + 1];
+      if (data[i] <= 20 && data[i + 2] <= 20 && g >= 110 && g <= 160) {
+        green++;
+        minG = Math.min(minG, g);
+        maxG = Math.max(maxG, g);
+      }
+    }
+    return { ratio: green / (BAND_ROWS * SAMPLE_WIDTH), flat: maxG - minG <= 24 };
+  }
+
   private report(): void {
     const video = this.video;
     if (!video) return;
@@ -117,6 +139,9 @@ export class StreamHealth extends Emitter<HealthEvents> {
     this.frameTimes = this.frameTimes.filter((time) => now - time <= 1000);
     const fps = this.frameTimes.length;
     const quality = video.getVideoPlaybackQuality();
+    const videoLatencyMs = this.latencyCount ? Math.round(this.latencySum / this.latencyCount) : null;
+    this.latencySum = 0;
+    this.latencyCount = 0;
     const corruptedRatio = this.sampledFrames ? this.corruptedFrames / this.sampledFrames : 0;
     this.sampledFrames = 0;
     this.corruptedFrames = 0;
@@ -153,6 +178,7 @@ export class StreamHealth extends Emitter<HealthEvents> {
       corruptedRatio,
       limitedRangeDetected: this.limitedRange,
       signalPresent: this.signal,
+      videoLatencyMs,
     });
   }
 }

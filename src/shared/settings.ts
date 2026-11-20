@@ -1,10 +1,12 @@
 export type QualityProfileId = '1080p60' | '1080p30' | '720p60' | '720p30';
 export type ScaleMode = 'fit' | 'fill' | 'stretch';
+export type Upscaler = 'fsr' | 'bilinear';
 export type ColorRange = 'auto' | 'full' | 'limited';
 export type Locale = 'auto' | 'en' | 'fr';
 
 export interface ImageSettings {
   scaleMode: ScaleMode;
+  upscaler: Upscaler;
   colorRange: ColorRange;
   sharpness: number;
   brightness: number;
@@ -40,6 +42,7 @@ export interface InterfaceSettings {
   showStats: boolean;
   startFullscreen: boolean;
   keepAwake: boolean;
+  autoUpdate: boolean;
 }
 
 export interface Settings {
@@ -54,6 +57,7 @@ export type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartia
 
 export const DEFAULT_IMAGE: ImageSettings = {
   scaleMode: 'fit',
+  upscaler: 'fsr',
   colorRange: 'auto',
   sharpness: 0.3,
   brightness: 0,
@@ -88,6 +92,7 @@ export const DEFAULT_SETTINGS: Settings = {
     showStats: false,
     startFullscreen: false,
     keepAwake: true,
+    autoUpdate: true,
   },
 };
 

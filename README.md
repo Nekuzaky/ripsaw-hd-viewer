@@ -16,12 +16,17 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshot-settings.png" width="49%" alt="RipView image settings with AMD FSR 1 upscaling" />
+  <img src="docs/screenshot-status.png" width="49%" alt="RipView waiting for the Razer Ripsaw HD capture card" />
+</p>
+
 ## Features
 
 **Image**
 
 - 1080p at 60 fps, the highest capture mode of the Ripsaw HD, rendered on the GPU through WebGL2
-- Contrast-adaptive sharpening that keeps 1080p crisp on 1440p and 4K monitors
+- **AMD FidelityFX Super Resolution 1** (EASU upscaling + RCAS sharpening) keeps the 1080p capture crisp on 1440p and 4K monitors
 - Automatic detection and correction of limited color range (16-235), the usual cause of washed-out blacks
 - Brightness, contrast, saturation and gamma controls
 - Fit, fill and stretch scaling
@@ -53,6 +58,7 @@
 - Auto-hiding controls and cursor
 - Keeps the screen awake while you play
 - English and French interface
+- Automatic updates: new versions download in the background and install on restart
 
 ## Keyboard shortcuts
 
@@ -67,7 +73,7 @@
 | `R`          | Start / stop recording            |
 | `P`          | Mini player                       |
 | `Z`          | Cycle scaling mode                |
-| `I`          | Performance stats                 |
+| `I`          | Performance stats and latency     |
 | `Tab`        | Settings                          |
 | `F5`         | Reconnect                         |
 | Double-click | Fullscreen                        |
@@ -106,7 +112,7 @@ The console sends a limited color range. RipView corrects it automatically, or y
 No. It passes 4K through to a TV or monitor plugged into its HDMI output, but it captures at up to 1080p60. RipView uses that maximum.
 
 **How much delay does RipView add?**
-Video is drawn the moment each frame arrives, and audio uses the lowest-latency mode of Windows. Press `I` to see the live stats.
+Video is drawn the moment each frame arrives, and audio uses the lowest-latency mode of Windows. Press `I` to see the measured video latency inside the PC (typically around 25 ms), the audio latency, the frame rate and dropped frames.
 
 **The Ripsaw HD is "in use by another app". What should I do?**
 Close OBS, Streamlabs, Discord or any app with a camera preview. RipView reconnects automatically.
@@ -173,11 +179,11 @@ RipView is an independent project. It is not affiliated with, endorsed by or spo
 
 **RipView** est un logiciel gratuit pour la carte de capture **Razer Ripsaw HD**. Il affiche ta PS5, PS4, Xbox ou Nintendo Switch sur ton PC avec la meilleure image possible et la latence la plus faible, sans OBS ni Streamlabs.
 
-- **Image** : 1080p à 60 i/s rendue par la carte graphique, netteté adaptative, correction automatique des couleurs délavées, réglages de luminosité, contraste, saturation et gamma.
+- **Image** : 1080p à 60 i/s rendue par la carte graphique, agrandissement AMD FSR 1 pour les écrans 1440p et 4K, correction automatique des couleurs délavées, réglages de luminosité, contraste, saturation et gamma.
 - **Fiabilité** : détection automatique de la Ripsaw HD, reconnexion toute seule, détection des glitchs USB avec baisse automatique de la qualité et conseil pour régler le problème.
 - **Son** : latence minimale, mode nuit, réglage de synchro, choix de la sortie.
 - **Captures** : captures d'écran, replay instantané (touche `B`), enregistrement MP4 dans `Vidéos\RipView`.
-- **Confort** : mini-lecteur toujours au premier plan (touche `P`), interface qui se cache toute seule, écran qui ne se met pas en veille.
+- **Confort** : mini-lecteur toujours au premier plan (touche `P`), interface qui se cache toute seule, écran qui ne se met pas en veille, mises à jour automatiques.
 
 **Pour la meilleure image** : branche la Ripsaw HD directement sur un port USB 3 (pas sur un hub), désactive le HDCP et le HDR dans les réglages de la PS5, et ferme OBS, Streamlabs ou Discord.
 

@@ -1,3 +1,4 @@
+import type { UpdateStatus } from '@shared/ipc';
 import type { DeepPartial, ScaleMode, Settings } from '@shared/settings';
 import { AudioEngine } from '../audio/AudioEngine';
 import { CaptureSource, type CaptureStatus } from '../capture/CaptureSource';
@@ -60,7 +61,12 @@ export class App implements AppActions {
     this.renderer = new GpuRenderer(this.stage, s.image);
     this.status = new StatusScreen(root);
     this.stats = new StatsOverlay(root);
-    this.panel = new SettingsPanel(root, settings, () => this.toggleSettings());
+    this.panel = new SettingsPanel(
+      root,
+      settings,
+      () => this.toggleSettings(),
+      () => void this.checkUpdates(),
+    );
     this.controls = new ControlBar(root, this);
     this.toast = new Toast(root);
 
@@ -186,7 +192,7 @@ export class App implements AppActions {
     this.capture.on('devices', (devices) => this.panel.setDevices(devices));
     this.capture.on('stream', (stream) => this.onStream(stream));
 
-    this.renderer.onFrame((now) => this.health.onFrame(now));
+    this.renderer.onFrame((now, metadata) => this.health.onFrame(now, metadata));
     this.health.on('stats', (stats) => {
       this.stats.update(stats, this.audio.latencyMs, this.limitedRange);
       if (this.captureStatus.kind !== 'live') return;
@@ -203,6 +209,7 @@ export class App implements AppActions {
     this.recorder.on('error', () => this.toast.show(t('toast.saveFailed'), { tone: 'warning' }));
 
     this.settings.on('change', ({ settings, patch }) => this.onSettingsChange(settings, patch));
+    window.ripview.updates.onStatus((status) => this.onUpdateStatus(status, false));
   }
 
   private startCapture(): void {
@@ -282,6 +289,37 @@ export class App implements AppActions {
       }
       if (patch.ui.showStats !== undefined) this.stats.setVisible(settings.ui.showStats);
       if (patch.ui.keepAwake !== undefined) void window.ripview.power.keepAwake(settings.ui.keepAwake);
+    }
+  }
+
+  private async checkUpdates(): Promise<void> {
+    this.toast.show(t('toast.update.checking'));
+    this.onUpdateStatus(await window.ripview.updates.check(), true);
+  }
+
+  private onUpdateStatus(status: UpdateStatus, manual: boolean): void {
+    switch (status.state) {
+      case 'ready':
+        this.toast.show(t('toast.update.ready', { version: status.version }), {
+          tone: 'success',
+          ms: 15000,
+          action: { label: t('toast.update.restart'), run: () => void window.ripview.updates.install() },
+        });
+        break;
+      case 'downloading':
+        if (manual || status.percent === 0) {
+          this.toast.show(t('toast.update.downloading', { version: status.version }));
+        }
+        break;
+      case 'up-to-date':
+        if (manual) this.toast.show(t('toast.update.upToDate'), { tone: 'success' });
+        break;
+      case 'unsupported':
+        if (manual) this.toast.show(t('toast.update.unsupported'));
+        break;
+      case 'error':
+        if (manual) this.toast.show(t('toast.update.error'), { tone: 'warning' });
+        break;
     }
   }
 

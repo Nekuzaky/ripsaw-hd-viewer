@@ -14,7 +14,18 @@ export const IpcChannel = {
   MediaShowItem: 'media:show-item',
   PowerKeepAwake: 'power:keep-awake',
   AppInfo: 'app:info',
+  UpdateCheck: 'update:check',
+  UpdateInstall: 'update:install',
+  UpdateStatus: 'update:status',
 } as const;
+
+export type UpdateStatus =
+  | { state: 'unsupported' }
+  | { state: 'checking' }
+  | { state: 'up-to-date' }
+  | { state: 'downloading'; version: string; percent: number }
+  | { state: 'ready'; version: string }
+  | { state: 'error'; message: string };
 
 export type IpcChannelName = (typeof IpcChannel)[keyof typeof IpcChannel];
 

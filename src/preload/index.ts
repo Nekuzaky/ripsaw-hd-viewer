@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { RipViewBridge } from '@shared/bridge';
-import { IpcChannel, type WindowState } from '@shared/ipc';
+import { IpcChannel, type UpdateStatus, type WindowState } from '@shared/ipc';
 
 const bridge: RipViewBridge = {
   settings: {
@@ -31,6 +31,15 @@ const bridge: RipViewBridge = {
   },
   app: {
     info: () => ipcRenderer.invoke(IpcChannel.AppInfo),
+  },
+  updates: {
+    check: () => ipcRenderer.invoke(IpcChannel.UpdateCheck),
+    install: () => ipcRenderer.invoke(IpcChannel.UpdateInstall),
+    onStatus: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus): void => listener(status);
+      ipcRenderer.on(IpcChannel.UpdateStatus, handler);
+      return () => ipcRenderer.off(IpcChannel.UpdateStatus, handler);
+    },
   },
 };
 

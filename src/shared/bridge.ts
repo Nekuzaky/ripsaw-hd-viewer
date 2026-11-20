@@ -1,4 +1,4 @@
-import type { AppInfo, SavedMedia, WindowState } from './ipc';
+import type { AppInfo, SavedMedia, UpdateStatus, WindowState } from './ipc';
 import type { DeepPartial, Settings } from './settings';
 
 export interface RipViewBridge {
@@ -26,5 +26,10 @@ export interface RipViewBridge {
   };
   app: {
     info(): Promise<AppInfo>;
+  };
+  updates: {
+    check(): Promise<UpdateStatus>;
+    install(): Promise<void>;
+    onStatus(listener: (status: UpdateStatus) => void): () => void;
   };
 }

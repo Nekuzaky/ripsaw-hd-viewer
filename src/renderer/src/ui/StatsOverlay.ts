@@ -26,6 +26,17 @@ export class StatsOverlay {
         `${Math.round(stats.corruptedRatio * 100)} %`,
         stats.corruptedRatio > 0.02 ? 'bad' : 'good',
       ],
+      [
+        t('stats.videoLatency'),
+        stats.videoLatencyMs === null ? '—' : t('unit.ms', { value: stats.videoLatencyMs }),
+        stats.videoLatencyMs === null
+          ? undefined
+          : stats.videoLatencyMs <= 50
+            ? 'good'
+            : stats.videoLatencyMs <= 90
+              ? 'warn'
+              : 'bad',
+      ],
       [t('stats.latency'), t('unit.ms', { value: audioLatencyMs })],
       [t('stats.range'), limitedRange ? '16-235' : '0-255'],
     ];

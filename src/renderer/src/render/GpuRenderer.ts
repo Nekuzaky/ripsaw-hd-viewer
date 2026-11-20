@@ -1,20 +1,27 @@
 import type { ImageSettings } from '@shared/settings';
-import { FRAGMENT_SHADER, VERTEX_SHADER } from './shaders';
+import { POST_SHADER, SCALE_SHADER, VERTEX_SHADER } from './shaders';
 
-type UniformName =
-  | 'uRect'
-  | 'uUvRect'
-  | 'uTexel'
-  | 'uSharpness'
-  | 'uLimitedRange'
-  | 'uBrightness'
-  | 'uContrast'
-  | 'uSaturation'
-  | 'uGamma';
+type Rect = [number, number, number, number];
 
-const UNIFORMS: UniformName[] = [
+interface Program<U extends string> {
+  handle: WebGLProgram;
+  uniforms: Record<U, WebGLUniformLocation | null>;
+}
+
+const SCALE_UNIFORMS = [
   'uRect',
-  'uUvRect',
+  'uFlipY',
+  'uFrame',
+  'uInputSize',
+  'uViewport',
+  'uOffset',
+  'uOutSize',
+  'uMode',
+] as const;
+const POST_UNIFORMS = [
+  'uRect',
+  'uFlipY',
+  'uSource',
   'uTexel',
   'uSharpness',
   'uLimitedRange',
@@ -22,19 +29,25 @@ const UNIFORMS: UniformName[] = [
   'uContrast',
   'uSaturation',
   'uGamma',
-];
+] as const;
+
+export type FrameListener = (now: number, metadata: VideoFrameCallbackMetadata) => void;
 
 export class GpuRenderer {
   readonly canvas: HTMLCanvasElement;
   private readonly gl: WebGL2RenderingContext;
-  private readonly uniforms = {} as Record<UniformName, WebGLUniformLocation | null>;
-  private readonly texture: WebGLTexture;
+  private readonly scale: Program<(typeof SCALE_UNIFORMS)[number]>;
+  private readonly post: Program<(typeof POST_UNIFORMS)[number]>;
+  private readonly frameTexture: WebGLTexture;
+  private readonly targetTexture: WebGLTexture;
+  private readonly framebuffer: WebGLFramebuffer;
+  private targetSize: [number, number] = [0, 0];
   private image: ImageSettings;
   private limitedRange = false;
   private video: HTMLVideoElement | null = null;
   private frameHandle: number | null = null;
   private hasFrame = false;
-  private onFrameListener: ((now: number, metadata: VideoFrameCallbackMetadata) => void) | null = null;
+  private frameListener: FrameListener | null = null;
   private readonly resizeObserver: ResizeObserver;
 
   constructor(container: HTMLElement, image: ImageSettings) {
@@ -55,23 +68,21 @@ export class GpuRenderer {
     if (!gl) throw new Error('WebGL2 is not available');
     this.gl = gl;
 
-    const program = this.createProgram();
-    gl.useProgram(program);
-    for (const name of UNIFORMS) this.uniforms[name] = gl.getUniformLocation(program, name);
+    this.scale = this.createProgram(SCALE_SHADER, SCALE_UNIFORMS);
+    this.post = this.createProgram(POST_SHADER, POST_UNIFORMS);
 
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW);
-    const location = gl.getAttribLocation(program, 'aPosition');
-    gl.enableVertexAttribArray(location);
-    gl.vertexAttribPointer(location, 2, gl.FLOAT, false, 0, 0);
+    for (const program of [this.scale.handle, this.post.handle]) {
+      const location = gl.getAttribLocation(program, 'aPosition');
+      gl.enableVertexAttribArray(location);
+      gl.vertexAttribPointer(location, 2, gl.FLOAT, false, 0, 0);
+    }
 
-    this.texture = gl.createTexture()!;
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    this.frameTexture = this.createTexture(gl.LINEAR);
+    this.targetTexture = this.createTexture(gl.NEAREST);
+    this.framebuffer = gl.createFramebuffer()!;
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
@@ -87,8 +98,8 @@ export class GpuRenderer {
     if (video) this.frameHandle = video.requestVideoFrameCallback(this.handleFrame);
   }
 
-  onFrame(listener: (now: number, metadata: VideoFrameCallbackMetadata) => void): void {
-    this.onFrameListener = listener;
+  onFrame(listener: FrameListener): void {
+    this.frameListener = listener;
   }
 
   setImage(image: ImageSettings): void {
@@ -111,62 +122,103 @@ export class GpuRenderer {
     const video = this.video;
     if (!video) return;
     const gl = this.gl;
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.bindTexture(gl.TEXTURE_2D, this.frameTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
     this.hasFrame = true;
     this.draw();
-    this.onFrameListener?.(now, metadata);
+    this.frameListener?.(now, metadata);
     this.frameHandle = video.requestVideoFrameCallback(this.handleFrame);
   };
+
+  private layout(vw: number, vh: number): { rect: Rect; uv: Rect } {
+    const canvasRatio = this.canvas.width / this.canvas.height;
+    const videoRatio = vw / vh;
+    if (this.image.scaleMode === 'fit') {
+      if (videoRatio > canvasRatio) {
+        const h = canvasRatio / videoRatio;
+        return { rect: [0, (1 - h) / 2, 1, h], uv: [0, 0, 1, 1] };
+      }
+      const w = videoRatio / canvasRatio;
+      return { rect: [(1 - w) / 2, 0, w, 1], uv: [0, 0, 1, 1] };
+    }
+    if (this.image.scaleMode === 'fill') {
+      if (videoRatio > canvasRatio) {
+        const w = canvasRatio / videoRatio;
+        return { rect: [0, 0, 1, 1], uv: [(1 - w) / 2, 0, w, 1] };
+      }
+      const h = videoRatio / canvasRatio;
+      return { rect: [0, 0, 1, 1], uv: [0, (1 - h) / 2, 1, h] };
+    }
+    return { rect: [0, 0, 1, 1], uv: [0, 0, 1, 1] };
+  }
 
   private draw(): void {
     const gl = this.gl;
     const video = this.video;
     if (!video || !this.hasFrame || !video.videoWidth) return;
 
-    const { width: cw, height: ch } = this.canvas;
+    const cw = this.canvas.width;
+    const ch = this.canvas.height;
     const vw = video.videoWidth;
     const vh = video.videoHeight;
-    const canvasRatio = cw / ch;
-    const videoRatio = vw / vh;
-    let rect = [0, 0, 1, 1];
-    let uvRect = [0, 0, 1, 1];
+    const { rect, uv } = this.layout(vw, vh);
+    const outW = Math.max(1, Math.round(rect[2] * cw));
+    const outH = Math.max(1, Math.round(rect[3] * ch));
+    const viewW = uv[2] * vw;
+    const viewH = uv[3] * vh;
+    const upscale = this.image.upscaler === 'fsr' && outW > viewW * 1.01 && outH > viewH * 1.01;
+    this.ensureTarget(outW, outH);
 
-    if (this.image.scaleMode === 'fit') {
-      if (videoRatio > canvasRatio) {
-        const h = canvasRatio / videoRatio;
-        rect = [0, (1 - h) / 2, 1, h];
-      } else {
-        const w = videoRatio / canvasRatio;
-        rect = [(1 - w) / 2, 0, w, 1];
-      }
-    } else if (this.image.scaleMode === 'fill') {
-      if (videoRatio > canvasRatio) {
-        const w = canvasRatio / videoRatio;
-        uvRect = [(1 - w) / 2, 0, w, 1];
-      } else {
-        const h = videoRatio / canvasRatio;
-        uvRect = [0, (1 - h) / 2, 1, h];
-      }
-    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+    gl.viewport(0, 0, outW, outH);
+    gl.useProgram(this.scale.handle);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.frameTexture);
+    const s = this.scale.uniforms;
+    gl.uniform4f(s.uRect, 0, 0, 1, 1);
+    gl.uniform1f(s.uFlipY, 1);
+    gl.uniform1i(s.uFrame, 0);
+    gl.uniform2f(s.uInputSize, vw, vh);
+    gl.uniform2f(s.uViewport, viewW, viewH);
+    gl.uniform2f(s.uOffset, uv[0], uv[1]);
+    gl.uniform2f(s.uOutSize, outW, outH);
+    gl.uniform1i(s.uMode, upscale ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, cw, ch);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.uniform4fv(this.uniforms.uRect, rect);
-    gl.uniform4fv(this.uniforms.uUvRect, uvRect);
-    gl.uniform2f(this.uniforms.uTexel, 1 / vw, 1 / vh);
-    gl.uniform1f(this.uniforms.uSharpness, this.image.sharpness);
-    gl.uniform1f(this.uniforms.uLimitedRange, this.limitedRange ? 1 : 0);
-    gl.uniform1f(this.uniforms.uBrightness, this.image.brightness);
-    gl.uniform1f(this.uniforms.uContrast, this.image.contrast);
-    gl.uniform1f(this.uniforms.uSaturation, this.image.saturation);
-    gl.uniform1f(this.uniforms.uGamma, this.image.gamma);
+    gl.useProgram(this.post.handle);
+    gl.bindTexture(gl.TEXTURE_2D, this.targetTexture);
+    const p = this.post.uniforms;
+    gl.uniform4f(p.uRect, Math.round(rect[0] * cw) / cw, Math.round(rect[1] * ch) / ch, outW / cw, outH / ch);
+    gl.uniform1f(p.uFlipY, 0);
+    gl.uniform1i(p.uSource, 0);
+    gl.uniform2f(p.uTexel, 1 / outW, 1 / outH);
+    gl.uniform1f(p.uSharpness, this.image.sharpness);
+    gl.uniform1f(p.uLimitedRange, this.limitedRange ? 1 : 0);
+    gl.uniform1f(p.uBrightness, this.image.brightness);
+    gl.uniform1f(p.uContrast, this.image.contrast);
+    gl.uniform1f(p.uSaturation, this.image.saturation);
+    gl.uniform1f(p.uGamma, this.image.gamma);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  private ensureTarget(width: number, height: number): void {
+    if (this.targetSize[0] === width && this.targetSize[1] === height) return;
+    const gl = this.gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.targetTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.targetTexture, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    this.targetSize = [width, height];
   }
 
   private clear(): void {
     const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
@@ -182,16 +234,30 @@ export class GpuRenderer {
     }
   }
 
-  private createProgram(): WebGLProgram {
+  private createTexture(filter: number): WebGLTexture {
     const gl = this.gl;
-    const program = gl.createProgram()!;
-    gl.attachShader(program, this.compile(gl.VERTEX_SHADER, VERTEX_SHADER));
-    gl.attachShader(program, this.compile(gl.FRAGMENT_SHADER, FRAGMENT_SHADER));
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      throw new Error(`Shader link failed: ${gl.getProgramInfoLog(program)}`);
+    const texture = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return texture;
+  }
+
+  private createProgram<U extends string>(fragment: string, names: readonly U[]): Program<U> {
+    const gl = this.gl;
+    const handle = gl.createProgram()!;
+    gl.attachShader(handle, this.compile(gl.VERTEX_SHADER, VERTEX_SHADER));
+    gl.attachShader(handle, this.compile(gl.FRAGMENT_SHADER, fragment));
+    gl.bindAttribLocation(handle, 0, 'aPosition');
+    gl.linkProgram(handle);
+    if (!gl.getProgramParameter(handle, gl.LINK_STATUS)) {
+      throw new Error(`Shader link failed: ${gl.getProgramInfoLog(handle)}`);
     }
-    return program;
+    const uniforms = {} as Record<U, WebGLUniformLocation | null>;
+    for (const name of names) uniforms[name] = gl.getUniformLocation(handle, name);
+    return { handle, uniforms };
   }
 
   private compile(type: number, source: string): WebGLShader {

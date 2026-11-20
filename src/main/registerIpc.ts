@@ -4,15 +4,20 @@ import type { DeepPartial, Settings } from '@shared/settings';
 import type { MainWindow } from './MainWindow';
 import type { MediaStorage } from './MediaStorage';
 import type { SettingsStore } from './SettingsStore';
+import type { Updater } from './Updater';
 
 interface Services {
   window: MainWindow;
   settings: SettingsStore;
   media: MediaStorage;
+  updater: Updater;
 }
 
-export function registerIpc({ window, settings, media }: Services): void {
+export function registerIpc({ window, settings, media, updater }: Services): void {
   let blockerId: number | null = null;
+
+  ipcMain.handle(IpcChannel.UpdateCheck, () => updater.check());
+  ipcMain.handle(IpcChannel.UpdateInstall, () => updater.install());
 
   ipcMain.handle(IpcChannel.SettingsGet, () => settings.get());
   ipcMain.handle(IpcChannel.SettingsSet, (_event, patch: DeepPartial<Settings>) => settings.update(patch));

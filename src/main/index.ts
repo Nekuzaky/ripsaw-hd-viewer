@@ -4,6 +4,7 @@ import { MainWindow } from './MainWindow';
 import { MediaStorage } from './MediaStorage';
 import { SettingsStore } from './SettingsStore';
 import { registerIpc } from './registerIpc';
+import { Updater } from './Updater';
 
 const ALLOWED_PERMISSIONS = new Set(['media', 'fullscreen', 'speaker-selection']);
 
@@ -37,7 +38,8 @@ if (!app.requestSingleInstanceLock()) {
     const media = new MediaStorage(settings);
     const icon = join(app.getAppPath(), 'build', 'icon.png');
     mainWindow = new MainWindow(settings.get().ui.startFullscreen, icon);
-    registerIpc({ window: mainWindow, settings, media });
+    const updater = new Updater(mainWindow.window);
+    registerIpc({ window: mainWindow, settings, media, updater });
 
     app.on('before-quit', () => {
       settings.flush();
@@ -45,6 +47,7 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     await mainWindow.load();
+    updater.start(settings.get().ui.autoUpdate);
   });
 
   app.on('window-all-closed', () => app.quit());

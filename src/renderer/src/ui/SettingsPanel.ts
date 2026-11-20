@@ -31,6 +31,7 @@ export class SettingsPanel {
     parent: HTMLElement,
     private readonly settings: SettingsService,
     private readonly onClose: () => void,
+    private readonly onCheckUpdates: () => void,
   ) {
     parent.appendChild(this.root);
     void window.ripview.app.info().then((info) => {
@@ -126,6 +127,14 @@ export class SettingsPanel {
               (['fit', 'fill', 'stretch'] as const).map((id) => [id, t(`settings.scale.${id}`)]),
               s.image.scaleMode,
               (value) => this.patch({ image: { scaleMode: value as Settings['image']['scaleMode'] } }),
+            ),
+          ),
+          this.row(
+            'settings.upscaler',
+            this.select(
+              (['fsr', 'bilinear'] as const).map((id) => [id, t(`settings.upscaler.${id}`)]),
+              s.image.upscaler,
+              (value) => this.patch({ image: { upscaler: value as Settings['image']['upscaler'] } }),
             ),
           ),
           this.row(
@@ -282,6 +291,9 @@ export class SettingsPanel {
           this.toggleRow('settings.keepAwake', s.ui.keepAwake, (value) =>
             this.patch({ ui: { keepAwake: value } }),
           ),
+          this.toggleRow('settings.autoUpdate', s.ui.autoUpdate, (value) =>
+            this.patch({ ui: { autoUpdate: value } }),
+          ),
         ];
       case 'about':
         return [
@@ -290,6 +302,11 @@ export class SettingsPanel {
             { className: 'about-title' },
             'RipView',
             h('span', {}, t('settings.version', { version: this.version })),
+          ),
+          h(
+            'button',
+            { className: 'secondary-button about-update', onclick: () => this.onCheckUpdates() },
+            t('settings.checkUpdates'),
           ),
           h('h3', {}, t('settings.shortcuts')),
           h(
