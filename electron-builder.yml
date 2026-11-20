@@ -29,3 +29,4 @@ publish:
   provider: github
   owner: Nekuzaky
   repo: ripsaw-hd-viewer
+  releaseType: release
