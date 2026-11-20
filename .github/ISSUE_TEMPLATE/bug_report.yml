@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: input
+    id: console
+    attributes:
+      label: Console and video settings
+      placeholder: PS5, 1080p, HDR off, HDCP off
+  - type: dropdown
+    id: usb
+    attributes:
+      label: How is the Ripsaw HD connected?
+      options:
+        - USB 3 port on the PC
+        - USB hub
+        - Front panel USB
+        - Not sure
+  - type: textarea
+    id: stats
+    attributes:
+      label: Stats overlay (press I)
